@@ -5,8 +5,8 @@ airscope-web - read-only view of what AirScope has recorded.
 Runs as a separate service from the poller and opens the database read-only, so
 a bug here cannot corrupt history. Renders no JavaScript at all: every chart is
 server-generated SVG, which lets the Content-Security-Policy forbid scripts
-outright. Callsigns are arbitrary bytes chosen by whoever is transmitting, so
-everything from the feed is HTML-escaped on the way out.
+outright. Text originating from the feed, the aircraft database and the
+enrichment APIs is HTML-escaped on the way out.
 
     airscope-web.py --database /var/lib/airscope/airscope.db --bind 0.0.0.0:8080
 

@@ -608,8 +608,8 @@ def message_priority(kind: str, sightings: list, args) -> int:
 
 
 def run_action(command: str, ac: dict, record: list | None, geo: dict | None) -> None:
-    # Aircraft data goes in as environment variables and is never interpolated
-    # into the command string; callsigns are arbitrary bytes off the air.
+    # Aircraft data goes in as environment variables rather than being
+    # interpolated into the command string: it is external input either way.
     env = {**os.environ, **action_env(ac, record, geo)}
     try:
         result = subprocess.run(command, shell=True, env=env, check=False)

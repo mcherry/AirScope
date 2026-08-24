@@ -213,20 +213,28 @@ point versus 76.2 as SQL rows, at full resolution. **No pruning is needed.**
 
 * The web UI is **read-only and unauthenticated**. It defaults to `0.0.0.0:8080`
   so notification links open on a phone. The database records your position and
-  when you are observing — keep it on a trusted network, never port-forward it.
+  when you are observing — keep it on a trusted network, don't port-forward it.
   For a private setup use `--bind 127.0.0.1:8080` and an SSH tunnel.
-* It renders **no JavaScript**, so its Content-Security-Policy is
-  `default-src 'none'`. Everything from the feed is HTML-escaped: callsigns are
-  eight arbitrary bytes chosen by whoever is transmitting.
-* For the same reason, aircraft data reaches `--action` as environment variables
-  and is never interpolated into the command string. If you rewrite that with an
-  f-string you reintroduce a shell injection reachable by anyone with a
-  transmitter.
+* It opens the database **read-only** (`?mode=ro`) and serves no state-changing
+  endpoints, so a bug in the UI cannot alter or corrupt recorded history.
+* It renders **no JavaScript**, which lets the Content-Security-Policy be
+  `default-src 'none'`. Text from the feed, the aircraft database and the
+  enrichment APIs is HTML-escaped on the way out. That escaping is not defending
+  against callsigns: Mode S encodes flight identification in a 6-bit character
+  set limited to `A–Z`, `0–9` and space, so a payload cannot be expressed in one.
+  It is defending against the strings that *are* arbitrary — operator and type
+  names from adsbdb, and photographer credits from Planespotters, which are
+  third-party and partly user-submitted.
+* Aircraft data reaches `--action` as environment variables rather than being
+  interpolated into the command string. Same reasoning: not a likely attack, but
+  the feed is external input and the safe form costs nothing.
 * Credentials belong in a file or `/etc/airscope.conf` (`chmod 600`), not on the
-  command line where `ps` can see them.
-* **Never commit a captured `aircraft.json`.** Every aircraft carries `r_dst` —
-  its range from *your* antenna — so a dozen of them trilaterate your receiver
-  to within ~15 metres. `.gitignore` covers this; `fixtures/` is synthetic.
+  command line, where `/proc/<pid>/cmdline` makes them readable by any local user.
+* **Never commit a captured `aircraft.json`.** When your receiver knows its own
+  location, every aircraft carries `r_dst` — its range from your antenna. Twelve
+  of them are enough to trilaterate the receiver; on a real capture from this
+  project that recovered the antenna to **within 15 metres**, which is why
+  `.gitignore` excludes captures and `fixtures/` is synthetic.
 
 ---
 
