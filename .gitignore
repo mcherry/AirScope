@@ -1,0 +1,21 @@
+__pycache__/
+*.py[cod]
+
+# Runtime data. The feed embeds r_dst/r_dir (range from YOUR antenna), so a
+# captured aircraft.json trilaterates your receiver to within ~15 metres.
+# Never commit a real capture; fixtures/ is deliberately synthetic.
+*.db
+*.db-wal
+*.db-shm
+state.json
+capture/
+*.capture.json
+
+# Local configuration and secrets
+airscope.conf
+.prowl_api_key
+*.env
+!*.env.example
+
+# Personal working notes: records deployment addresses and coordinates.
+NOTES.md

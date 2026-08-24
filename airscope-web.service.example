@@ -1,0 +1,55 @@
+# AirScope web UI. Separate from the poller so a bug here cannot take down
+# alerting, and it opens the database read-only so it cannot corrupt history.
+#
+#   sudo cp airscope-web.service.example /etc/systemd/system/airscope-web.service
+#   sudo sed -i 's/__USER__/yourname/g' /etc/systemd/system/airscope-web.service
+#   sudo systemctl daemon-reload && sudo systemctl enable --now airscope-web
+
+[Unit]
+Description=AirScope web UI
+After=network.target
+
+[Service]
+Type=exec
+# Must be the same user as the poller: SQLite WAL readers need write access to
+# the -shm file even when the database itself is opened read-only.
+User=__USER__
+Group=__USER__
+ExecStart=/usr/bin/python3 /opt/airscope/airscope-web.py \
+  --database /var/lib/airscope/airscope.db --bind 0.0.0.0:8080
+Restart=always
+RestartSec=10s
+
+StateDirectory=airscope
+
+# Listens on all interfaces so that a notification tapped on a phone opens.
+# There is NO authentication and the database records your position and when
+# you are observing, so keep this on a trusted network and never port-forward
+# it. For a private setup use --bind 127.0.0.1:8080 and tunnel instead:
+#   ssh -N -L 8080:127.0.0.1:8080 __USER__@thishost
+
+# Unlike the poller this needs no credentials, so /home stays hidden.
+ProtectHome=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

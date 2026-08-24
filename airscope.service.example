@@ -1,0 +1,54 @@
+# AirScope system service.
+#
+#   sudo cp airscope.service.example /etc/systemd/system/airscope.service
+#   sudo sed -i 's/__USER__/yourname/g' /etc/systemd/system/airscope.service
+#   sudo systemctl daemon-reload && sudo systemctl enable --now airscope
+#
+# Settings live in /etc/airscope.conf (see airscope.conf.example).
+
+[Unit]
+Description=AirScope - alerts for military aircraft overhead
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+User=__USER__
+Group=__USER__
+ExecStart=/usr/bin/python3 /opt/airscope/airscope.py --verbose
+Restart=always
+RestartSec=30s
+
+# -> /var/lib/airscope and /var/cache/airscope, created and chowned to User=,
+# exported as $STATE_DIRECTORY and $CACHE_DIRECTORY which airscope.py reads.
+StateDirectory=airscope
+CacheDirectory=airscope
+
+# read-only rather than yes, so a key stored at ~/.prowl_api_key stays readable.
+# Set this to "yes" if your credentials live in /etc/airscope.conf instead.
+ProtectHome=read-only
+
+NoNewPrivileges=yes
+ProtectSystem=strict
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+CapabilityBoundingSet=
+# AF_UNIX is needed for name resolution via nscd/systemd-resolved.
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

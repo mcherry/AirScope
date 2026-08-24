@@ -1,0 +1,89 @@
+# AirScope configuration.
+#
+# Searched in order: --config PATH, $AIRSCOPE_CONFIG,
+# $XDG_CONFIG_HOME/airscope.conf (~/.config/airscope.conf), /etc/airscope.conf
+#
+# Precedence, highest first: command-line flag, environment variable
+# ($AIRSCOPE_URL etc.), this file, built-in default.
+#
+# If this file holds credentials:  chmod 600 /etc/airscope.conf
+# Check what is actually in effect with:  airscope.py --print-config
+
+[airscope]
+# The only setting most people need to change. Your observing position is read
+# from the receiver automatically, so it does not need to be configured.
+url = http://YOUR-RECEIVER/tar1090/data/aircraft.json
+
+# Seconds between polls. This is a local request; 10 is fine.
+interval = 10
+
+# How long an aircraft must be missing before a reappearance counts as a new
+# visit. Also absorbs signal dropouts: raise it if one pass alerts twice.
+absence = 600
+
+# A predicted pass within this many nm raises the priority of the sighting
+# alert and arms the separate "approach" alert.
+overhead_radius = 5
+
+# Send the approach alert this many seconds before closest approach, and never
+# when fewer than min_lead seconds remain (no time to react).
+lead_time = 240
+min_lead = 30
+
+# Consecutive polls a prediction must hold before the approach alert fires.
+# Track wobble makes single-poll predictions jittery.
+confirm_polls = 2
+
+# Comma-separated: prowl, ntfy, webhook. Aircraft are never filtered out --
+# these settings only affect wording and priority.
+notifiers = prowl
+
+# -2 very low, -1 moderate, 0 normal, 1 high, 2 emergency.
+priority = 0
+approach_priority = 1
+
+# Visit history and dedup state. Defaults to $STATE_DIRECTORY/airscope.db under
+# systemd, otherwise ~/.local/state/airscope/airscope.db. Grows by roughly
+# 12 MB per year at 30 contacts/day, so it needs no pruning.
+# database = /var/lib/airscope/airscope.db
+
+# Base URL of the AirScope web UI. When set, notifications deep-link to the
+# aircraft page here instead of the receiver's own map. Use a literal IP rather
+# than a hostname: notifications are opened on a phone, which may be on a VPN
+# with different DNS.
+# web_url = http://192.168.1.10:8080
+
+# Optional shell command run once per aircraft, in addition to the notifiers.
+# Fields arrive as environment variables: $HEX $FLIGHT $REG $TYPE $DESC $OWNER
+# $ALT $GS $SQUAWK $LAT $LON $RSSI $DIST_NM $BEARING $MISS_NM $ETA_S $ELEVATION
+# $ALT_CPA $LIGHT. They are never interpolated into the command string.
+# action = logger -t airscope "$TYPE $FLIGHT at $DIST_NM nm"
+
+# Override the observing position only if the receiver does not report one.
+# lat = 39.00000
+# lon = -98.00000
+
+[prowl]
+# Either the key itself, or the path of a file containing it.
+key = ~/.prowl_api_key
+application = AirScope
+
+[ntfy]
+server = https://ntfy.sh
+# Pick something long and unguessable: anyone who knows the topic can read it.
+topic =
+# token = ~/.ntfy_token
+
+[webhook]
+# Receives {"event", "body", "link", "priority"} as JSON.
+url =
+# token = ~/.webhook_token
+
+[web]
+# Settings for airscope-web.py. It reads [airscope] database if not set here.
+# All interfaces by default so notification links open on a phone. There is no
+# authentication, and the database records your position and observing habits,
+# so keep it on a trusted network. Use 127.0.0.1:8080 plus an SSH tunnel if you
+# would rather it not be reachable from the LAN.
+bind = 0.0.0.0:8080
+# database = /var/lib/airscope/airscope.db
