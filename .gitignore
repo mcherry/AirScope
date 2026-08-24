@@ -1,5 +1,15 @@
 __pycache__/
 *.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+env/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
 
 # Runtime data. The feed embeds r_dst/r_dir (range from YOUR antenna), so a
 # captured aircraft.json trilaterates your receiver to within ~15 metres.
@@ -7,15 +17,47 @@ __pycache__/
 *.db
 *.db-wal
 *.db-shm
+*.sqlite
+*.sqlite3
 state.json
 capture/
 *.capture.json
+*.log
 
 # Local configuration and secrets
 airscope.conf
 .prowl_api_key
+.ntfy_token
+.webhook_token
 *.env
 !*.env.example
 
 # Personal working notes: records deployment addresses and coordinates.
 NOTES.md
+
+# Camera originals carry EXIF (body, timestamps, sometimes GPS). Only publish
+# images that have been resized and stripped into docs/.
+DSC*.jpg
+DSC*.JPG
+DSC*.png
+DSC*.PNG
+IMG_*.jpg
+IMG_*.JPG
+*.ARW
+*.CR2
+*.NEF
+
+# OS and editor droppings
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+*.orig
+*.rej
+.idea/
+.vscode/
