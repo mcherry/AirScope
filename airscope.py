@@ -914,6 +914,12 @@ def poll_once(args, db: AircraftDB | None, notifiers: list, store: Store,
         store.record(entry, now, ac, geo)
 
         if not entry["announced"]:
+            # A freshly acquired aircraft is in the feed several seconds before
+            # its position decodes, so alerting on the first poll almost always
+            # means alerting without one. Wait briefly, then alert regardless.
+            if geo is None and now - entry["first_seen"] < args.position_grace:
+                store.set_flags(entry)
+                continue
             entry["announced"] = True
             detections.append((ac, record, geo))
 
@@ -1106,6 +1112,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--confirm-polls", type=int,
         default=int(main_setting("confirm_polls", "AIRSCOPE_CONFIRM_POLLS", "2")),
         help="consecutive polls a prediction must hold before the approach alert fires",
+    )
+    p.add_argument(
+        "--position-grace", type=float,
+        default=float(main_setting("position_grace", "AIRSCOPE_POSITION_GRACE", "45")),
+        help="seconds to wait for a position to decode before alerting without "
+             "one; 0 alerts immediately",
     )
     p.add_argument("--lat", type=float,
                    default=_f_or_none(main_setting("lat", "AIRSCOPE_LAT")),

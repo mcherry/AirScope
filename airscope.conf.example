@@ -34,6 +34,12 @@ min_lead = 30
 # Track wobble makes single-poll predictions jittery.
 confirm_polls = 2
 
+# An aircraft appears in the feed several seconds before its position decodes
+# (position needs a matched pair of CPR frames). Without this wait, almost every
+# first-sighting alert would say "position unknown". After this many seconds it
+# alerts anyway -- some aircraft never report a position at all.
+position_grace = 45
+
 # Comma-separated: prowl, ntfy, webhook. Aircraft are never filtered out --
 # these settings only affect wording and priority.
 notifiers = prowl
