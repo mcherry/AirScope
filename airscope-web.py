@@ -272,7 +272,7 @@ def page(title: str, body: str) -> bytes:
   <nav><a href="/">Overview</a><a href="/aircraft">Airframes</a></nav>
 </header>
 {body}
-<footer>read-only view &#183; generated {esc(time.strftime('%Y-%m-%d %H:%M:%S'))}</footer>
+<footer>generated {esc(time.strftime('%Y-%m-%d %H:%M:%S'))}</footer>
 </div></body></html>""".encode("utf-8")
 
 
