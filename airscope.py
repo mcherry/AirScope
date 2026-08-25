@@ -914,9 +914,9 @@ def poll_once(args, db: AircraftDB | None, notifiers: list, store: Store,
         store.record(entry, now, ac, geo)
 
         if not entry["announced"]:
-            # A freshly acquired aircraft is in the feed several seconds before
-            # its position decodes, so alerting on the first poll almost always
-            # means alerting without one. Wait briefly, then alert regardless.
+            # A distant target is heard well before its position decodes, so
+            # alerting on the first poll usually means alerting without one.
+            # Some aircraft never report a position, hence the cap.
             if geo is None and now - entry["first_seen"] < args.position_grace:
                 store.set_flags(entry)
                 continue
@@ -1115,7 +1115,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     p.add_argument(
         "--position-grace", type=float,
-        default=float(main_setting("position_grace", "AIRSCOPE_POSITION_GRACE", "45")),
+        default=float(main_setting("position_grace", "AIRSCOPE_POSITION_GRACE", "150")),
         help="seconds to wait for a position to decode before alerting without "
              "one; 0 alerts immediately",
     )
