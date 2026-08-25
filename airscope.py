@@ -927,6 +927,7 @@ def poll_once(args, db: AircraftDB | None, notifiers: list, store: Store,
     now = time.time()
     detections: list = []
     approaches: list = []
+    present: set = set()
     seen = 0
 
     for ac in payload.get("aircraft", []):
@@ -937,6 +938,7 @@ def poll_once(args, db: AircraftDB | None, notifiers: list, store: Store,
         if not hexid:
             continue
         seen += 1
+        present.add(hexid)
 
         geo = geometry(ac, observer)
         entry = state.get(hexid)
@@ -949,6 +951,7 @@ def poll_once(args, db: AircraftDB | None, notifiers: list, store: Store,
                      "visit_id": store.begin_visit(hexid, now, _s(ac.get("flight")).strip())}
             state[hexid] = entry
         entry["last_seen"] = now
+        entry["last"] = (ac, record, geo)
         store.record(entry, now, ac, geo)
 
         if not entry["announced"]:
@@ -970,6 +973,17 @@ def poll_once(args, db: AircraftDB | None, notifiers: list, store: Store,
                 approaches.append((ac, record, geo))
         store.set_flags(entry)
 
+    # An aircraft can leave before the position grace expires. Waiting any
+    # longer would drop the alert entirely, so send it the moment it goes.
+    for hexid, entry in state.items():
+        if hexid not in present and not entry["announced"] and entry.get("last"):
+            entry["announced"] = True
+            store.set_flags(entry)
+            detections.append(entry["last"])
+
+    for hexid in [h for h, v in state.items() if now - v.get("last_seen", 0) > args.absence]:
+        store.close_visit(state.pop(hexid))
+
     # An approach alert supersedes a first-sighting alert for the same aircraft.
     if approaches:
         pending = {_s(a[0].get("hex")).strip().lower() for a in approaches}
@@ -982,9 +996,6 @@ def poll_once(args, db: AircraftDB | None, notifiers: list, store: Store,
         for _, _, geo in group:
             add_lighting(geo, observer, now)
         notify(kind, group, args, notifiers)
-
-    for hexid in [h for h, v in state.items() if now - v.get("last_seen", 0) > args.absence]:
-        store.close_visit(state.pop(hexid))
 
     if not args.no_enrich:
         for icao, reg in store.unenriched():
