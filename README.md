@@ -138,6 +138,15 @@ Each aircraft alerts once per *visit*. A visit ends after `absence` seconds
 without a sighting (default 600), which also absorbs signal dropouts — raise it
 if one pass alerts twice, lower it if genuine return visits are missed.
 
+An aircraft is heard before its position is available, because position needs a
+matched pair of CPR frames and a distant target can take minutes to produce one.
+The sighting alert therefore waits up to `position_grace` seconds (default 150)
+for a position, firing the moment one decodes, or without one when the window
+expires — or immediately if the aircraft leaves the feed first, since some never
+report a position at all. `min_lead` (default 30) suppresses approach alerts
+with too little time left to react, and `interval` (default 10) is the poll
+period.
+
 Example approach alert:
 
 ```
@@ -189,6 +198,16 @@ http://<host>:8080
 Overview with a range/bearing radar of recent passes, per-airframe history, and
 a per-pass page with ground track and altitude profile. Reads the same SQLite
 file the poller writes, opened **read-only**.
+
+Airframes are enriched once each from [adsbdb](https://www.adsbdb.com/) and
+[Planespotters](https://www.planespotters.net/photo/api) for operator and a
+photo of that exact tail. This runs in the poller, after notifications are sent,
+so it can never delay an alert; `--no-enrich` turns it off. A lookup result is
+kept permanently, so to retry everything after a failure:
+
+```sh
+sqlite3 /var/lib/airscope/airscope.db "UPDATE aircraft SET enriched_at = NULL;"
+```
 
 ![A recorded pass, with ground track and altitude profile](docs/ui-pass.png)
 
