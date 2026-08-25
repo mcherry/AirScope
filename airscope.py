@@ -70,7 +70,7 @@ DB_LADD = 8
 PROWL_API = "https://api.prowlapp.com/publicapi/add"
 NTFY_SERVER = "https://ntfy.sh"
 ADSBDB_API = "https://api.adsbdb.com/v0/aircraft/"
-PLANESPOTTERS_API = "https://api.planespotters.net/pub/photos/hex/"
+PLANESPOTTERS_API = "https://api.planespotters.net/pub/photos/"
 USER_AGENT = "AirScope/1.0 (+https://github.com/mcherry/AirScope)"
 
 FT_PER_NM = 6076.115
@@ -843,10 +843,11 @@ class Store:
         self.db.execute("UPDATE visits SET ended = last_seen WHERE id = ?",
                         (entry["visit_id"],))
 
-    def unenriched(self, limit: int = 3) -> list[str]:
+    def unenriched(self, limit: int = 3) -> list[tuple]:
         rows = self.db.execute(
-            "SELECT icao FROM aircraft WHERE enriched_at IS NULL LIMIT ?", (limit,))
-        return [r["icao"] for r in rows]
+            "SELECT icao, registration FROM aircraft WHERE enriched_at IS NULL LIMIT ?",
+            (limit,))
+        return [(r["icao"], r["registration"]) for r in rows]
 
     def save_enrichment(self, icao: str, data: dict, now: float) -> None:
         self.db.execute("""
@@ -863,7 +864,7 @@ class Store:
               data.get("photo_link"), data.get("photographer"), icao))
 
 
-def enrich_aircraft(icao: str, timeout: float) -> dict:
+def enrich_aircraft(icao: str, timeout: float, registration: str | None = None) -> dict:
     """Operator and a photo of this exact airframe. Enrichment only -- a failure
     here must never affect alerting, so every error is swallowed."""
     out: dict = {}
@@ -876,17 +877,26 @@ def enrich_aircraft(icao: str, timeout: float) -> dict:
         out["type_code"] = ac.get("icao_type") or None
     except (urllib.error.URLError, OSError, ValueError):
         pass
-    try:
-        payload = fetch_json(PLANESPOTTERS_API + icao, timeout)
+
+    # Planespotters indexes some airframes only by registration, not by hex.
+    reg = out.get("registration") or registration
+    lookups = [f"hex/{icao}"]
+    if reg:
+        lookups.append("reg/" + urllib.parse.quote(reg.strip(), safe=""))
+    for path in lookups:
+        try:
+            payload = fetch_json(PLANESPOTTERS_API + path, timeout)
+        except (urllib.error.URLError, OSError, ValueError):
+            continue
         photos = payload.get("photos") or []
-        if photos:
-            photo = photos[0]
-            thumb = photo.get("thumbnail_large") or photo.get("thumbnail") or {}
-            out["photo_thumb"] = thumb.get("src")
-            out["photo_link"] = photo.get("link")
-            out["photographer"] = photo.get("photographer")
-    except (urllib.error.URLError, OSError, ValueError):
-        pass
+        if not photos:
+            continue
+        photo = photos[0]
+        thumb = photo.get("thumbnail_large") or photo.get("thumbnail") or {}
+        out["photo_thumb"] = thumb.get("src")
+        out["photo_link"] = photo.get("link")
+        out["photographer"] = photo.get("photographer")
+        break
     return out
 
 
@@ -977,8 +987,8 @@ def poll_once(args, db: AircraftDB | None, notifiers: list, store: Store,
         store.close_visit(state.pop(hexid))
 
     if not args.no_enrich:
-        for icao in store.unenriched():
-            store.save_enrichment(icao, enrich_aircraft(icao, args.timeout), now)
+        for icao, reg in store.unenriched():
+            store.save_enrichment(icao, enrich_aircraft(icao, args.timeout, reg), now)
 
     if args.verbose:
         log(f"{seen} military in view, {len(state)} tracked")
