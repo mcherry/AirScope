@@ -190,9 +190,15 @@ phone, which is where you will usually open it from a notification.
 
 <img src="docs/ui-mobile.png" alt="AirScope on a phone" width="300">
 
-Set `web_url` in the config to make notifications deep-link to the aircraft page
-instead of the receiver's map. Use a literal IP rather than a hostname —
-notifications are opened on a phone, which may be on a VPN with different DNS.
+Set `web_url` in the config to add a link to the AirScope history page for that
+airframe. Notifications always carry the receiver's live map link as well, and
+both appear as text in the message body — some clients, Prowl included, only
+surface an attached URL inside their own app. `link_target` chooses which one is
+opened on tap; the live map is the default, being the more useful of the two
+while the aircraft is still overhead.
+
+Use a literal IP rather than a hostname — notifications are opened on a phone,
+which may be on a VPN with different DNS.
 
 ### Storage
 

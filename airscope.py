@@ -565,21 +565,48 @@ def summary_line(sighting) -> str:
     return " - ".join(bits)
 
 
-def aircraft_link(args, hexid: str) -> str:
-    """Prefer the AirScope web UI, falling back to the receiver's own map."""
-    if args.web_url:
-        return f"{args.web_url.rstrip('/')}/aircraft/{hexid}"
+def receiver_link(args, hexid: str = "") -> str:
+    """The receiver's own live map, which is the useful one mid-flight."""
     base = tar1090_base(args.url)
-    return f"{base}/?icao={hexid}" if base.startswith("http") else ""
+    if not base.startswith("http"):
+        return ""
+    return f"{base}/?icao={hexid}" if hexid else base
+
+
+def web_link(args, hexid: str = "") -> str:
+    """The AirScope history page for this airframe."""
+    if not args.web_url:
+        return ""
+    base = args.web_url.rstrip("/")
+    return f"{base}/aircraft/{hexid}" if hexid else base
+
+
+def link_lines(args, hexid: str = "") -> list[str]:
+    """Prowl only surfaces its url parameter inside the app, so the URLs go in
+    the body too, where every client shows them."""
+    lines = []
+    live = receiver_link(args, hexid)
+    history = web_link(args, hexid)
+    if live:
+        lines.append(f"Live: {live}")
+    if history:
+        lines.append(f"History: {history}")
+    return lines
+
+
+def primary_link(args, hexid: str = "") -> str:
+    if args.link_target == "web":
+        return web_link(args, hexid) or receiver_link(args, hexid)
+    return receiver_link(args, hexid) or web_link(args, hexid)
 
 
 def compose_message(kind: str, sightings: list, args) -> tuple[str, str, str]:
     if len(sightings) > 1:
         noun = "approaching overhead" if kind == "approach" else "military aircraft"
         event = f"{len(sightings)} {noun}"
-        body = "\n".join(summary_line(s) for s in sightings)
-        link = args.web_url.rstrip("/") if args.web_url else tar1090_base(args.url)
-        return event, body, link if link.startswith("http") else ""
+        lines = [summary_line(s) for s in sightings]
+        lines += link_lines(args)
+        return event, "\n".join(lines), primary_link(args)
 
     ac, record, geo = sightings[0]
     f = action_env(ac, record, geo)
@@ -594,7 +621,8 @@ def compose_message(kind: str, sightings: list, args) -> tuple[str, str, str]:
     if geo and geo.get("light"):
         lines.append(geo["light"])
     lines.append(f"ICAO {f['HEX']}")
-    return event, "\n".join(lines), aircraft_link(args, f["HEX"])
+    lines += link_lines(args, f["HEX"])
+    return event, "\n".join(lines), primary_link(args, f["HEX"])
 
 
 def message_priority(kind: str, sightings: list, args) -> int:
@@ -1139,8 +1167,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     p.add_argument(
         "--web-url", default=main_setting("web_url", "AIRSCOPE_WEB_URL"),
-        help="base URL of the AirScope web UI; notifications deep-link into it "
-             "instead of the receiver's own map",
+        help="base URL of the AirScope web UI; adds a history link to notifications",
+    )
+    p.add_argument(
+        "--link-target", choices=("tar1090", "web"),
+        default=main_setting("link_target", "AIRSCOPE_LINK_TARGET", "tar1090"),
+        help="which URL notification clients open when tapped; both appear in "
+             "the message body either way",
     )
     p.add_argument(
         "--db-url", default=main_setting("db_url", "AIRSCOPE_DB_URL"),
@@ -1265,7 +1298,10 @@ def main(argv: list[str] | None = None) -> int:
         if not notifiers:
             print("No notifiers configured; nothing to test.")
             return 1
-        results = [(n.name, n.send("AirScope test", "AirScope can reach this notifier.", "", 0))
+        body = "\n".join(["AirScope can reach this notifier.",
+                          "Links below use a sample aircraft:"]
+                         + link_lines(args, "ae6044"))
+        results = [(n.name, n.send("AirScope test", body, primary_link(args, "ae6044"), 0))
                    for n in notifiers]
         for name, ok in results:
             print(f"{name}: {'sent' if ok else 'FAILED'}")

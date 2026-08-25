@@ -55,11 +55,17 @@ approach_priority = 1
 # 12 MB per year at 30 contacts/day, so it needs no pruning.
 # database = /var/lib/airscope/airscope.db
 
-# Base URL of the AirScope web UI. When set, notifications deep-link to the
-# aircraft page here instead of the receiver's own map. Use a literal IP rather
-# than a hostname: notifications are opened on a phone, which may be on a VPN
-# with different DNS.
+# Base URL of the AirScope web UI. When set, notifications carry a "History"
+# link to the aircraft page here alongside the receiver's live map. Use a
+# literal IP rather than a hostname: notifications are opened on a phone, which
+# may be on a VPN with different DNS.
 # web_url = http://192.168.1.10:8080
+
+# Which URL a notification opens when tapped: tar1090 (the receiver's live map,
+# most useful while the aircraft is still up) or web (the AirScope history
+# page). Both always appear as text in the message body, because some clients --
+# Prowl among them -- only surface the attached URL inside their own app.
+# link_target = tar1090
 
 # Optional shell command run once per aircraft, in addition to the notifiers.
 # Fields arrive as environment variables: $HEX $FLIGHT $REG $TYPE $DESC $OWNER
