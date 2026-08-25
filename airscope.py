@@ -46,6 +46,7 @@ from __future__ import annotations
 import argparse
 import configparser
 import gzip
+import hashlib
 import json
 import math
 import os
@@ -264,6 +265,7 @@ class AircraftDB:
         self.cache_dir = cache_dir
         self.timeout = timeout
         self.blocks: dict[str, dict | None] = {}
+        self.ranges: list | None = None
 
     def discover(self) -> str:
         """The db folder name carries a content hash that changes on db updates."""
@@ -291,7 +293,15 @@ class AircraftDB:
             return False
         log(f"aircraft database moved to {current}")
         self.blocks.clear()
+        self.ranges = None
         return True
+
+    def _cache_dir(self, folder: str) -> Path:
+        """Keyed on the whole folder URL: the last component alone is not unique
+        across receivers, and collides for anything served from a plain "db"."""
+        tag = re.sub(r"[^A-Za-z0-9._-]", "_", folder.rsplit("/", 1)[-1])[:40]
+        digest = hashlib.sha1(folder.encode()).hexdigest()[:8]
+        return self.cache_dir / f"{tag}-{digest}"
 
     def _block(self, bkey: str) -> dict | None:
         if bkey in self.blocks:
@@ -304,7 +314,7 @@ class AircraftDB:
             log(f"WARN: aircraft database unavailable: {exc}")
             return None
 
-        path = self.cache_dir / folder.rsplit("/", 1)[-1] / f"{bkey}.json"
+        path = self._cache_dir(folder) / f"{bkey}.json"
         data = None
         try:
             data = json.loads(path.read_bytes())
@@ -331,6 +341,31 @@ class AircraftDB:
 
         self.blocks[bkey] = data
         return data
+
+    def military_ranges(self) -> list:
+        """ICAO address blocks allocated to military operators, as tar1090 uses
+        them. Attempted once; an empty list simply disables the check."""
+        if self.ranges is not None:
+            return self.ranges
+        self.ranges = []
+        try:
+            folder = self.discover()
+            raw = http_get(f"{folder}/ranges.js", self.timeout)
+            for start, end in (json.loads(raw).get("military") or []):
+                self.ranges.append((int(start, 16), int(end, 16)))
+        except (urllib.error.URLError, OSError, ValueError, RuntimeError, TypeError) as exc:
+            log(f"WARN: no military ICAO ranges ({exc}); relying on database flags alone")
+        return self.ranges
+
+    def in_military_range(self, icao: str) -> bool:
+        icao = icao.strip()
+        if not icao or icao.startswith("~"):  # TIS-B and other non-ICAO addresses
+            return False
+        try:
+            value = int(icao, 16)
+        except ValueError:
+            return False
+        return any(low <= value <= high for low, high in self.military_ranges())
 
     def lookup(self, icao: str) -> list | None:
         icao = icao.strip().upper()
@@ -361,9 +396,14 @@ def military(ac: dict, db: AircraftDB | None) -> tuple[bool, list | None]:
             pass
     if db is None:
         return False, None
-    record = db.lookup(_s(ac.get("hex")))
+    icao = _s(ac.get("hex"))
+    record = db.lookup(icao)
     flags = record[2] if record and len(record) > 2 else None
-    return (isinstance(flags, str) and flags[:1] == "1"), record
+    if isinstance(flags, str) and flags[:1] == "1":
+        return True, record
+    # Fall back to the ICAO allocation, as tar1090 does: plenty of military
+    # airframes sit in a military address block without a database flag.
+    return db.in_military_range(icao), record
 
 
 def action_env(ac: dict, record: list | None, geo: dict | None = None) -> dict[str, str]:
@@ -1026,20 +1066,27 @@ def check(args, db: AircraftDB) -> int:
         return 1
 
     print(f"\ndatabase: {folder}")
+    print(f"  military ranges  : {len(db.military_ranges())} ICAO blocks")
     observer = get_observer(args)
     resolved, hits = 0, []
+    by_flag = by_range = 0
     for ac in aircraft:
         is_mil, record = military(ac, db)
         if record or "dbFlags" in ac:
             resolved += 1
         if is_mil:
+            flags = record[2] if record and len(record) > 2 else None
+            if isinstance(flags, str) and flags[:1] == "1":
+                by_flag += 1
+            else:
+                by_range += 1
             geo = geometry(ac, observer)
             add_lighting(geo, observer, time.time())
             hits.append(summary_line((ac, record, geo)))
 
     print(f"  resolved         : {resolved}/{len(aircraft)}")
     print(f"  with position    : {sum(1 for a in aircraft if a.get('lat') is not None)}")
-    print(f"  military         : {len(hits)}")
+    print(f"  military         : {len(hits)}  ({by_flag} by db flag, {by_range} by ICAO range)")
     for row in hits:
         print(f"    MIL {row}")
 

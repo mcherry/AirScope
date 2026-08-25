@@ -43,6 +43,12 @@ blocks on disk, and auto-discovers the `db-<hash>` folder name from the tar1090
 index page — that hash changes whenever the database updates, so hardcoding it
 would silently stop detection.
 
+An aircraft also counts as military if its ICAO address falls in a military
+allocation, which tar1090 checks alongside the flag. The blocks come from
+`<db-folder>/ranges.js` on the same receiver. It matters: of ~99,000 database
+entries, 275 sit in a military range without being flagged — largely non-US
+airframes such as Egyptian Gulfstreams, Algerian Il-76s and Italian C-27Js.
+
 A useful side effect: the lookup also backfills registration, type and
 description on feeds that lack them.
 
@@ -72,9 +78,10 @@ feed: http://192.168.1.20/tar1090/data/aircraft.json
   carrying reg     : 0
 
 database: http://192.168.1.20/tar1090/db-f2631e2
+  military ranges  : 32 ICAO blocks
   resolved         : 19/19
   with position    : 17
-  military         : 1
+  military         : 1  (1 by db flag, 0 by ICAO range)
     MIL BE20 KNOX25 - 14 nm NW at 27000 ft - closest 8.3 nm in 2m20s, look 359 N, 28 deg up
 
 observer: 39.00000, -98.00000

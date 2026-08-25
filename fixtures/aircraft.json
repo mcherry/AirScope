@@ -473,6 +473,27 @@
    "messages": 4,
    "seen": 14.0,
    "rssi": -21.6
+  },
+  {
+   "hex": "ae1f3c",
+   "type": "adsb_icao",
+   "flight": "ARMY26  ",
+   "alt_baro": 2200,
+   "alt_geom": 2500,
+   "gs": 121.0,
+   "track": 201.4,
+   "lat": 39.18,
+   "lon": -97.79,
+   "r_dst": 14.58,
+   "r_dir": 42.1,
+   "squawk": "1200",
+   "rssi": -19.4,
+   "seen": 0.3,
+   "seen_pos": 0.8,
+   "messages": 640,
+   "category": "A7",
+   "mlat": [],
+   "tisb": []
   }
  ]
 }
