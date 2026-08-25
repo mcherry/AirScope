@@ -280,6 +280,17 @@ def page(title: str, body: str) -> bytes:
 # views
 # --------------------------------------------------------------------------
 
+def photo_block(row, label: str) -> str:
+    """Photo of this exact airframe, credited. Empty when none is known."""
+    if not row["photo_thumb"]:
+        return ""
+    credit = f"&#169; {esc(row['photographer'])}" if row["photographer"] else ""
+    link = esc(row["photo_link"] or "#")
+    return (f'<div><a href="{link}" rel="noreferrer noopener">'
+            f'<img src="{esc(row["photo_thumb"])}" alt="Photograph of {esc(label)}"></a>'
+            f'<div class="label mt-s">{credit}</div></div>')
+
+
 class Views:
     def __init__(self, db_path: Path):
         self.path = db_path
@@ -378,14 +389,7 @@ class Views:
                 "SELECT * FROM visits WHERE icao = ? ORDER BY started DESC LIMIT 100",
                 (icao,)).fetchall()
 
-        photo = ""
-        if ac["photo_thumb"]:
-            credit = f"&#169; {esc(ac['photographer'])}" if ac["photographer"] else ""
-            link = esc(ac["photo_link"] or "#")
-            photo = (f'<div><a href="{link}" rel="noreferrer noopener">'
-                     f'<img src="{esc(ac["photo_thumb"])}" alt="Photograph of '
-                     f'{esc(ac["registration"] or icao)}"></a>'
-                     f'<div class="label mt-s">{credit}</div></div>')
+        photo = photo_block(ac, ac["registration"] or icao)
 
         best = min((v["closest_nm"] for v in visits if v["closest_nm"] is not None),
                    default=None)
@@ -425,7 +429,8 @@ class Views:
     def visit(self, visit_id: int) -> bytes | None:
         with self.connect() as db:
             v = db.execute("""
-                SELECT v.*, a.registration, a.type_code, a.description, a.operator
+                SELECT v.*, a.registration, a.type_code, a.description, a.operator,
+                       a.photo_thumb, a.photo_link, a.photographer
                 FROM visits v LEFT JOIN aircraft a USING (icao)
                 WHERE v.id = ?""", (visit_id,)).fetchone()
             if not v:
@@ -449,18 +454,21 @@ class Views:
     <div class="stat">{f"{v['peak_rssi']:.1f}" if v['peak_rssi'] is not None else '-'}
     <span class="unit">dBFS</span></div></div>
 </div>
-<div class="panel mt">
+<div class="hero mt">
+{photo_block(v, v['registration'] or v['icao'])}
+<div class="panel flex1">
 <dl class="kv">
   <dt>Aircraft</dt><dd><a href="/aircraft/{esc(v['icao'])}">
     {esc(v['registration'] or v['icao'])}</a> &#183;
     <span class="mil">{esc(v['type_code'] or '?')}</span></dd>
   <dt>Description</dt><dd>{esc(v['description'] or '-')}</dd>
+  <dt>Operator</dt><dd>{esc(v['operator'] or '-')}</dd>
   <dt>Callsign</dt><dd>{esc(v['callsign'] or '-')}</dd>
   <dt>Started</dt><dd>{esc(stamp(v['started']))}</dd>
   <dt>Ended</dt><dd>{esc(stamp(v['ended']) if v['ended'] else 'in view now')}</dd>
   <dt>Alerted</dt><dd>{'sighting' if v['notified'] else 'no'}{
       ' + approach' if v['approached'] else ''}</dd>
-</dl></div>
+</dl></div></div>
 <h2>Ground track</h2><div class="panel">{track_svg(track)}</div>
 <h2>Altitude</h2><div class="panel">{altitude_svg(track) or
     '<p class="empty">no altitude recorded</p>'}</div>"""
