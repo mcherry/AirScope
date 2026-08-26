@@ -36,10 +36,13 @@ confirm_polls = 2
 
 # An aircraft is heard before its position is available: position needs a
 # matched pair of CPR frames, and a distant or weak target can take minutes to
-# produce one -- measured around 160s for a contact first heard at 33 nm. Wait
-# this long for a position before alerting without one. Some aircraft never
-# report a position at all, so this is a cap, not a requirement; the approach
-# alert is independent and unaffected by it.
+# produce one. Measured over 30 real visits the lag ranged 0-371s, median 50s;
+# 300s catches 19 of the 20 that ever reported a position, 150s only 14.
+#
+# Raising this only delays aircraft that never report a position -- a third of
+# military contacts here -- and those alert immediately if they leave the feed
+# first. The approach alert is independent and unaffected.
+position_grace = 300
 position_grace = 150
 
 # Comma-separated: prowl, ntfy, webhook. Aircraft are never filtered out --

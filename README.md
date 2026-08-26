@@ -140,12 +140,13 @@ if one pass alerts twice, lower it if genuine return visits are missed.
 
 An aircraft is heard before its position is available, because position needs a
 matched pair of CPR frames and a distant target can take minutes to produce one.
-The sighting alert therefore waits up to `position_grace` seconds (default 150)
+The sighting alert therefore waits up to `position_grace` seconds (default 300)
 for a position, firing the moment one decodes, or without one when the window
-expires — or immediately if the aircraft leaves the feed first, since some never
-report a position at all. `min_lead` (default 30) suppresses approach alerts
-with too little time left to react, and `interval` (default 10) is the poll
-period.
+expires — or immediately if the aircraft leaves the feed first. Measured over 30
+real visits the lag ranged 0–371 s with a median of 50 s, and **a third of
+military contacts never reported a position at all**, which no amount of waiting
+fixes. `min_lead` (default 30) suppresses approach alerts with too little time
+left to react, and `interval` (default 10) is the poll period.
 
 Example approach alert:
 

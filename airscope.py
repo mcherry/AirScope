@@ -1211,7 +1211,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     p.add_argument(
         "--position-grace", type=float,
-        default=float(main_setting("position_grace", "AIRSCOPE_POSITION_GRACE", "150")),
+        default=float(main_setting("position_grace", "AIRSCOPE_POSITION_GRACE", "300")),
         help="seconds to wait for a position to decode before alerting without "
              "one; 0 alerts immediately",
     )
